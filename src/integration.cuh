@@ -9,6 +9,30 @@
 //#define TY2
 #define TY3
 
+__global__ void updateFixvel(const Float4* __restrict__ dev_x_sorted, const Float4* __restrict__ dev_walls_nx, Float4* __restrict__ dev_vel_sorted) 
+{
+    unsigned int idx = threadIdx.x + blockIdx.x * blockDim.x; // Thread id
+    if (idx < devC_np && devC_nw > 0) { // Condition prevents block size error
+       __syncthreads();
+       const Float4 x = dev_x_sorted[idx];
+       const Float4 walls_nx = dev_walls_nx[0];
+       Float4 vel = dev_vel_sorted[idx];
+       if (abs(x.z-walls_nx.w) < 3.0*x.w) {
+       	  vel.w = 1.0;
+       }
+       else if (x.z > 0.5*walls_nx.w) {
+	  vel.w = 0.0;
+       }
+       __syncthreads();
+       dev_vel_sorted[idx] = vel;
+   }    
+}														    
+
+
+
+
+
+
 // Second order integration scheme based on Taylor expansion of particle kinematics. 
 // Kernel executed on device, and callable from host only.
 __global__ void integrate(
@@ -129,14 +153,14 @@ __global__ void integrate(
         }
 
         // Modify the acceleration if the particle is marked as having a fixed
-        // velocity. In that case, zero the horizontal acceleration and disable
-        // gravity to counteract segregation. Particles may move in the
-        // z-dimension, to allow for dilation.
+        // velocity. In that case, zero the horizontal acceleration so that
+	// the particles move uniformly forizontally. For the z-direction,
+        // there is no restriction on acceleration to account for dilation.
         else if (vel.w > 0.0001 && vel.w < 10.0) {
 
             acc.x = 0.0;
             acc.y = 0.0;
-            acc.z -= devC_params.g[2];
+            // acc.z -= devC_params.g[2];
 
             // Zero the angular acceleration
             angacc = MAKE_FLOAT4(0.0, 0.0, 0.0, 0.0);

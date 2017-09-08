@@ -251,7 +251,7 @@ __global__ void checkParticlePositions(
             __syncthreads();
             printf("\nParticle %d has non-finite position: x = %f %f %f",
                     idx, x.x, x.y, x.z);
-        }
+       }
 
         /*__syncthreads();
         printf("\nParticle %d: x = %f %f %f",
@@ -981,6 +981,7 @@ void DEM::startTime()
     double t_copyValues = 0.0;
     double t_findDarcyVelocities = 0.0;
 
+    
     if (PROFILING == 1) {
         cudaEventCreate(&kernel_tic);
         cudaEventCreate(&kernel_toc);
@@ -2460,6 +2461,9 @@ void DEM::startTime()
                 change_velocity_state = -1.0;
                 velocity_state = 1;
             }
+
+            updateFixvel<<<dimGrid,dimBlock>>>(dev_x_sorted, dev_walls_nx, dev_vel_sorted);
+	    cudaThreadSynchronize();
 
             // Update particle kinematics
             if (PROFILING == 1)
